@@ -1,0 +1,1692 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gtube Playlist App - 나만의 주크박스 & 노래사전</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & Noto Sans KR -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans KR"', 'Inter', 'sans-serif'],
+          },
+          colors: {
+            slate: {
+              850: '#162032',
+              950: '#090e1a',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* 커스텀 스크롤바 및 미세 스타일 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    .yt-aspect {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%;
+    }
+    .yt-aspect iframe,
+    .yt-aspect #yt-player-placeholder {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 0.75rem;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-emerald-500/30 selection:text-emerald-200">
+
+  <!-- 상단 헤더 -->
+  <header class="bg-slate-900/90 backdrop-blur border-b border-slate-800 sticky top-0 z-30">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-slate-950 font-bold text-lg shadow-lg shadow-emerald-500/20">
+          G
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            Gtube Playlist App
+            <span class="hidden sm:inline-block text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              하이브리드 주크박스
+            </span>
+          </h1>
+          <p class="text-[11px] text-slate-400 hidden sm:block">30곡 단위 스마트 재생목록 · 로컬/GitHub 노래사전 · 무제한 연속 재생</p>
+        </div>
+      </div>
+
+      <!-- 상단 상태 요약 뱃지 -->
+      <div class="flex items-center gap-2 text-xs">
+        <div class="bg-slate-800/80 border border-slate-700/80 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5" title="로컬 노래사전 누적 곡 수">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span class="text-slate-300">사전:</span>
+          <strong id="header-dict-count" class="text-emerald-400 font-semibold">0곡</strong>
+        </div>
+        <div class="bg-slate-800/80 border border-slate-700/80 px-2.5 py-1.5 rounded-lg hidden md:flex items-center gap-1.5" title="금일 추정 API 잔여 유닛 (일일 10,000 한도)">
+          <span class="text-slate-300">잔여 API:</span>
+          <strong id="header-api-units" class="text-cyan-400 font-semibold">10,000</strong>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 메인 컨테이너 -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-4 py-4 flex flex-col gap-4">
+
+    <!-- 1. 상단 고정 YouTube IFrame 플레이어 & 트랜스포트 컨트롤 -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-xl">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+        <!-- 좌측: 유튜브 공식 IFrame 플레이어 (포그라운드 정책 준수) -->
+        <div class="lg:col-span-5">
+          <div class="yt-aspect bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-inner">
+            <div id="yt-player-placeholder" class="flex flex-col items-center justify-center text-slate-500 p-4 text-center">
+              <svg class="w-10 h-10 mb-2 text-emerald-500/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p class="text-xs">플레이어 로딩 중... 곡을 클릭하면 즉시 재생됩니다.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 우측: 현재 재생 정보 & 플레이어 컨트롤 -->
+        <div class="lg:col-span-7 flex flex-col justify-between gap-3">
+          <div>
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+              <span id="player-queue-indicator" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                대기 중 (0 / 0곡)
+              </span>
+              <span id="player-status-badge" class="text-xs text-slate-400">
+                화면 켜짐 상태 연속 재생 지원
+              </span>
+            </div>
+
+            <h2 id="now-playing-title" class="text-lg sm:text-xl font-bold text-white truncate">
+              재생할 곡을 선택해 주세요
+            </h2>
+            <p id="now-playing-artist" class="text-sm text-emerald-400 font-medium mt-0.5 truncate">
+              아래 재생목록이나 노래사전에서 곡을 누르면 연속 재생됩니다
+            </p>
+          </div>
+
+          <!-- 컨트롤 버튼 바 -->
+          <div class="bg-slate-950/70 border border-slate-800/90 rounded-xl p-2.5 sm:p-3 flex flex-wrap items-center justify-between gap-2">
+            <!-- 셔플 버튼 -->
+            <button id="btn-shuffle" onclick="toggleShuffle()" class="px-3 py-2 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5" title="셔플 재생 전환">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span id="shuffle-label">셔플 OFF</span>
+            </button>
+
+            <!-- 이전 / 재생·일시정지 / 다음 -->
+            <div class="flex items-center gap-2">
+              <button onclick="playPrev()" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition active:scale-95" title="이전 곡">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M8.445 14.832A1 1 0 0010 14v-2.798l5.445 3.63A1 1 0 0017 14V6a1 1 0 00-1.555-.832L10 8.798V6a1 1 0 00-1.555-.832l-6 4a1 1 0 000 1.664l6 4z" />
+                </svg>
+              </button>
+
+              <button id="btn-play-pause" onclick="togglePlayPause()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-bold text-sm shadow-lg shadow-emerald-500/20 transition active:scale-95 flex items-center gap-1.5">
+                <svg id="icon-play" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                </svg>
+                <span id="play-pause-label">재생</span>
+              </button>
+
+              <button onclick="playNext()" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition active:scale-95" title="다음 곡">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M4.555 5.168A1 1 0 003 6v8a1 1 0 001.555.832L10 11.202V14a1 1 0 001.555.832l6-4a1 1 0 000-1.664l-6-4A1 1 0 0010 6v2.798l-5.445-3.63z" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- 반복 모드 버튼 -->
+            <button id="btn-repeat" onclick="cycleRepeatMode()" class="px-3 py-2 rounded-lg text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition flex items-center gap-1.5" title="반복 모드 전환">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span id="repeat-label">전체 반복</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 4개 메인 내비게이션 탭 바 -->
+    <nav class="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
+      <button onclick="switchTab('playlist')" id="tab-btn-playlist" class="tab-btn py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1.5 bg-emerald-500 text-slate-950 shadow">
+        <span>🎵</span>
+        <span>재생목록 (30곡 뷰)</span>
+      </button>
+      <button onclick="switchTab('dictionary')" id="tab-btn-dictionary" class="tab-btn py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1.5 text-slate-300 hover:bg-slate-800">
+        <span>📖</span>
+        <span>노래사전 색인</span>
+      </button>
+      <button onclick="switchTab('batch')" id="tab-btn-batch" class="tab-btn py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1.5 text-slate-300 hover:bg-slate-800">
+        <span>⚡</span>
+        <span>일괄등록 · 30곡검색</span>
+      </button>
+      <button onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1.5 text-slate-300 hover:bg-slate-800">
+        <span>⚙️</span>
+        <span>DB연동 · 백업</span>
+      </button>
+    </nav>
+
+    <!-- ===================================================================== -->
+    <!-- TAB 1: 재생목록 (30곡 단위 페이지네이션 & 자유 편집)                     -->
+    <!-- ===================================================================== -->
+    <section id="tab-playlist" class="tab-panel bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-5 flex flex-col gap-4">
+      <!-- 상단 툴바: 30곡 페이지 이동 & 필터 -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="changePlaylistPage(-1)" id="btn-prev-page" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:pointer-events-none text-xs font-semibold text-slate-200 transition">
+            ◀ 이전 30곡
+          </button>
+
+          <div class="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5">
+            <select id="playlist-page-select" onchange="jumpToPlaylistPage(this.value)" class="bg-transparent text-xs sm:text-sm font-bold text-emerald-400 focus:outline-none cursor-pointer">
+              <option value="1">1페이지 (1~30곡)</option>
+            </select>
+            <span id="playlist-total-info" class="text-xs text-slate-400">/ 총 0곡</span>
+          </div>
+
+          <button onclick="changePlaylistPage(1)" id="btn-next-page" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:pointer-events-none text-xs font-semibold text-slate-200 transition">
+            다음 30곡 ▶
+          </button>
+        </div>
+
+        <!-- 즐겨찾기 필터 & 현재 곡 위치 이동 -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="toggleFavFilter()" id="btn-fav-filter" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition flex items-center gap-1">
+            <span>★</span>
+            <span id="fav-filter-label">즐겨찾기만 보기</span>
+          </button>
+          <button onclick="locateCurrentSongPage()" class="px-3 py-2 rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/25 text-xs font-medium transition">
+            현재 곡 위치로
+          </button>
+          <button onclick="resetDefaultPlaylist()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-400 hover:text-slate-200 transition" title="기본 샘플 35곡으로 재생목록 초기화">
+            기본 35곡 복원
+          </button>
+        </div>
+      </div>
+
+      <!-- 30곡 리스트 영역 -->
+      <div id="playlist-list-container" class="flex flex-col gap-2">
+        <!-- JS로 동적 렌더링 -->
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- TAB 2: 노래사전 (가수명 + 곡명 색인 DB & 즉시 선곡)                    -->
+    <!-- ===================================================================== -->
+    <section id="tab-dictionary" class="tab-panel hidden bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-5 flex flex-col gap-4">
+      <!-- 상단 검색 및 정렬 컨트롤 -->
+      <div class="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+        <div class="relative flex-1">
+          <input type="text" id="dict-search-input" oninput="renderDictionary()" placeholder="가수명 또는 곡명을 입력하세요 (API 소모 0, 0.01초 즉시 검색)..." class="w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none" />
+          <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <select id="dict-sort-select" onchange="renderDictionary()" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-slate-200 focus:outline-none">
+            <option value="artist">가수명 가나다/ABC순</option>
+            <option value="title">곡명 가나다/ABC순</option>
+            <option value="recent">최근 추가순</option>
+          </select>
+          <button onclick="toggleManualAddModal()" class="px-3.5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm transition whitespace-nowrap">
+            + 직접 ID 등록
+          </button>
+        </div>
+      </div>
+
+      <!-- 수동 곡 등록 패널 (토글형) -->
+      <div id="manual-add-box" class="hidden bg-slate-950 border border-emerald-500/40 rounded-xl p-3.5 flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
+        <div class="flex-1">
+          <label class="block text-[11px] text-slate-400 mb-1">가수명</label>
+          <input type="text" id="manual-artist" placeholder="예: 성시경" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none" />
+        </div>
+        <div class="flex-1">
+          <label class="block text-[11px] text-slate-400 mb-1">곡명</label>
+          <input type="text" id="manual-title" placeholder="예: 거리에서" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none" />
+        </div>
+        <div class="flex-1">
+          <label class="block text-[11px] text-slate-400 mb-1">YouTube 영상 ID (11자리)</label>
+          <input type="text" id="manual-videoid" placeholder="예: dQw4w9WgXcQ 또는 유튜브 URL" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none" />
+        </div>
+        <button onclick="addManualSongToDict()" class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition">
+          사전에 저장
+        </button>
+      </div>
+
+      <!-- 초성 / 알파벳 색인 바 -->
+      <div id="dict-index-bar" class="flex flex-wrap gap-1.5">
+        <!-- JS로 초성 버튼 렌더링 -->
+      </div>
+
+      <!-- 노래사전 결과 카운트 -->
+      <div class="flex items-center justify-between text-xs text-slate-400">
+        <span id="dict-result-count">검색 결과: 0곡</span>
+        <span>곡을 선택하면 즉시 듣거나 현재 30곡 재생목록에 담을 수 있습니다.</span>
+      </div>
+
+      <!-- 노래사전 리스트 -->
+      <div id="dict-list-container" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-[540px] overflow-y-auto pr-1">
+        <!-- JS로 렌더링 -->
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- TAB 3: 일괄 등록 & 30곡 배치 검색 (340곡 대기열 처리기)               -->
+    <!-- ===================================================================== -->
+    <section id="tab-batch" class="tab-panel hidden bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-5 flex flex-col gap-4">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <!-- 좌측: 대량 텍스트 입력 영역 -->
+        <div class="lg:col-span-5 flex flex-col gap-2.5">
+          <div class="flex items-center justify-between">
+            <label class="text-sm font-bold text-white">1단계: 대량 곡 목록 입력 (최대 수백 곡)</label>
+            <button onclick="fillSampleBatchText()" class="text-xs px-2.5 py-1 rounded-lg bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/25 transition">
+              샘플 40곡 채우기
+            </button>
+          </div>
+          <p class="text-xs text-slate-400">
+            <code class="text-emerald-400">가수 - 곡명</code> 형식으로 한 줄에 한 곡씩 붙여넣으세요. 번호(예: `1. `)가 붙어 있어도 자동으로 정리됩니다.
+          </p>
+          <textarea id="batch-textarea" rows="10" placeholder="예시:&#10;성시경 - 너의 모든 순간&#10;아이유 - 밤편지&#10;임영웅 - 사랑은 늘 도망가&#10;김광석 - 서른 즈음에&#10;Queen - Bohemian Rhapsody" class="w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-xl p-3 text-xs sm:text-sm text-slate-100 placeholder-slate-600 focus:outline-none leading-relaxed"></textarea>
+          <div class="flex gap-2">
+            <button onclick="enqueueBatchSongs()" class="flex-1 py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs sm:text-sm border border-slate-700 transition">
+              대기열에 등록하기
+            </button>
+            <button onclick="clearBatchQueue()" class="py-2.5 px-3 rounded-xl bg-slate-950 hover:bg-rose-950/50 text-slate-400 hover:text-rose-300 text-xs border border-slate-800 transition">
+              대기열 비우기
+            </button>
+          </div>
+        </div>
+
+        <!-- 우측: 30곡 배치 검색 실행기 & 상태 대기열 -->
+        <div class="lg:col-span-7 flex flex-col gap-3 bg-slate-950/60 border border-slate-800 rounded-xl p-3.5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 class="text-sm font-bold text-white">2단계: 30곡씩 하이브리드 자동 매칭</h3>
+              <p class="text-[11px] text-slate-400 mt-0.5">
+                ① 로컬 노래사전 → ② GitHub DB → ③ YouTube API 순으로 찾아 할당량을 아낍니다.
+              </p>
+            </div>
+            <span id="batch-progress-text" class="text-xs font-bold px-2.5 py-1 rounded-lg bg-slate-800 text-emerald-400 self-start sm:self-auto">
+              완료: 0 / 총 0곡
+            </span>
+          </div>
+
+          <!-- 진행률 바 -->
+          <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
+            <div id="batch-progress-bar" class="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-300" style="width: 0%"></div>
+          </div>
+
+          <!-- 핵심 실행 버튼: 다음 30곡 자동 검색 -->
+          <button id="btn-process-30" onclick="processNext30Batch()" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-bold text-sm shadow-lg shadow-emerald-500/20 transition active:scale-[0.99] flex items-center justify-center gap-2">
+            <span>⚡</span>
+            <span id="btn-process-30-label">다음 30곡 자동 검색 및 추가 (대기 0곡)</span>
+          </button>
+
+          <!-- 대기열 목록 -->
+          <div id="batch-queue-list" class="flex flex-col gap-1.5 max-h-[340px] overflow-y-auto pr-1 mt-1">
+            <div class="text-center text-xs text-slate-500 py-10">
+              좌측 입력창에 곡 목록을 넣고 [대기열에 등록하기]를 눌러주세요.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- TAB 4: DB 연동 & 백업 설정 (API 키, GitHub 데이터셋, JSON 백업)        -->
+    <!-- ===================================================================== -->
+    <section id="tab-settings" class="tab-panel hidden bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-5 flex flex-col gap-5">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- 1. YouTube Data API v3 키 설정 -->
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+              <span>🔑</span> YouTube Data API v3 키 설정
+            </h3>
+            <span class="text-[11px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/20">
+              로컬 브라우저 안전 저장
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            로컬 사전과 GitHub 데이터셋에 없는 신곡을 자동 검색할 때만 사용됩니다. (1곡 검색당 100유닛 소모, 일일 10,000유닛 무료)
+          </p>
+          <div class="flex gap-2">
+            <input type="password" id="setting-api-key" placeholder="AIzaSy... 형태의 YouTube API 키 입력" class="flex-1 bg-slate-900 border border-slate-700 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-white focus:outline-none" />
+            <button onclick="saveApiKey()" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition">
+              저장
+            </button>
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/80">
+            <span>오늘 추정 잔여 할당량: <strong id="setting-remaining-units" class="text-cyan-400">10,000</strong> 유닛</span>
+            <button onclick="resetDailyUnits()" class="text-slate-400 hover:text-white underline">할당량 카운터 초기화</button>
+          </div>
+        </div>
+
+        <!-- 2. GitHub 공개 영상 ID 데이터셋 연동 -->
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+              <span>🐙</span> GitHub 공개 영상 ID 데이터셋 연동
+            </h3>
+            <span id="github-cache-badge" class="text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              연동됨: 0곡
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            GitHub Raw JSON/CSV URL 또는 로컬 데이터셋 파일을 불러오면 API 할당량을 0유닛만 쓰고도 대량의 곡 ID를 즉시 매칭합니다.
+          </p>
+          <div class="flex gap-2">
+            <input type="text" id="setting-github-url" placeholder="https://raw.githubusercontent.com/.../songs.json" class="flex-1 bg-slate-900 border border-slate-700 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-white focus:outline-none" />
+            <button onclick="fetchGithubDataset()" class="px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition whitespace-nowrap">
+              URL 불러오기
+            </button>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 pt-1">
+            <button onclick="loadSimulatedGithubDataset()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs font-medium border border-slate-700 transition">
+              ✨ 샘플 GitHub 명곡 DB (25곡) 즉시 연동 테스트
+            </button>
+            <label class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs cursor-pointer border border-slate-700 transition">
+              <span>CSV/JSON 파일 선택</span>
+              <input type="file" accept=".json,.csv" onchange="uploadExternalDatasetFile(event)" class="hidden" />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. 나만의 노래사전 JSON 백업 및 복원 -->
+      <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+            <span>💾</span> 나만의 노래사전 영구 백업 및 복원
+          </h3>
+          <p class="text-xs text-slate-400 mt-1">
+            지금까지 축적한 노래사전 DB(`가수명 + 곡명 + videoId`)를 JSON 파일로 내려받아 보관하거나 다른 기기로 옮길 수 있습니다.
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="exportDictionaryJson()" class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition">
+            JSON 파일로 내보내기 (Export)
+          </button>
+          <label class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs cursor-pointer border border-slate-700 transition">
+            <span>JSON 불러오기 (Import)</span>
+            <input type="file" accept=".json" onchange="importDictionaryJson(event)" class="hidden" />
+          </label>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 토스트 알림 컨테이너 -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+  <!-- YouTube 공식 IFrame Player API 스크립트 -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+
+  <script>
+    // =========================================================================
+    // 1. 기본 내장 샘플 노래사전 데이터 (35곡 - 실제 작동하는 공식 영상 ID 포함)
+    // =========================================================================
+    const DEFAULT_SONGS = [
+      { artist: "성시경", title: "너의 모든 순간", videoId: "evOs4328_30" },
+      { artist: "성시경", title: "거리에서", videoId: "l4m_6S_n9qQ" },
+      { artist: "성시경", title: "희재", videoId: "1p2O3R4T5Y6" },
+      { artist: "아이유 (IU)", title: "밤편지 (Through the Night)", videoId: "BzYnNdJhZQw" },
+      { artist: "아이유 (IU)", title: "좋은 날 (Good Day)", videoId: "jeqdYqsrsA0" },
+      { artist: "아이유 (IU)", title: "Love wins all", videoId: "JleoAppaxi0" },
+      { artist: "임영웅", title: "사랑은 늘 도망가", videoId: "lkHlnWFnA0c" },
+      { artist: "임영웅", title: "이제 나만 믿어요", videoId: "v5_03hP2p7A" },
+      { artist: "박효신", title: "야생화 (Wild Flower)", videoId: "_hsrsmwHv0A" },
+      { artist: "박효신", title: "눈의 꽃", videoId: "Sr0_6r5x7S8" },
+      { artist: "김광석", title: "서른 즈음에", videoId: "7p0R7y7v6yM" },
+      { artist: "김광석", title: "이등병의 편지", videoId: "3w2q5f6g7h8" },
+      { artist: "이문세", title: "광화문 연가", videoId: "8q9w0e1r2t3" },
+      { artist: "이문세", title: "옛사랑", videoId: "4r5t6y7u8i9" },
+      { artist: "조용필", title: "Bounce", videoId: "4x224921011" },
+      { artist: "조용필", title: "단발머리", videoId: "9o0p1a2s3d4" },
+      { artist: "유재하", title: "사랑하기 때문에", videoId: "5f6g7h8j9k0" },
+      { artist: "김동률", title: "다시 사랑한다 말할까", videoId: "1z2x3c4v5b6" },
+      { artist: "윤종신", title: "좋니", videoId: "jy_UiIQn_d0" },
+      { artist: "폴킴", title: "모든 날, 모든 순간", videoId: "nq0BYGyH2Do" },
+      { artist: "멜로망스", title: "선물", videoId: "qYYJqWsBb1U" },
+      { artist: "잔나비", title: "주저하는 연인들을 위해", videoId: "5g4l5H4B-cQ" },
+      { artist: "AKMU (악뮤)", title: "어떻게 이별까지 사랑하겠어, 널 사랑하는 거지", videoId: "m3DZsBw5bnE" },
+      { artist: "태연 (TAEYEON)", title: "만약에", videoId: "2w3e4r5t6y7" },
+      { artist: "에일리", title: "첫눈처럼 너에게 가겠다", videoId: "6r7t8y9u0i1" },
+      { artist: "BTS (방탄소년단)", title: "Dynamite", videoId: "gdZLi9oWNZg" },
+      { artist: "BTS (방탄소년단)", title: "봄날 (Spring Day)", videoId: "xEeFrLSkMm8" },
+      { artist: "BLACKPINK", title: "뚜두뚜두 (DDU-DU DDU-DU)", videoId: "IHNzOHi8sJs" },
+      { artist: "NewJeans", title: "Ditto", videoId: "pSUydWEqKwE" },
+      { artist: "DAY6 (데이식스)", title: "예뻤어", videoId: "BS7tz2rAsuE" },
+      { artist: "Queen", title: "Bohemian Rhapsody", videoId: "fJ9rUzIMcZQ" },
+      { artist: "Coldplay", title: "Viva La Vida", videoId: "dvgZkm1xWPE" },
+      { artist: "Ed Sheeran", title: "Perfect", videoId: "2Vv-BfVoq4g" },
+      { artist: "Adele", title: "Someone Like You", videoId: "hLQl3WQQoQ0" },
+      { artist: "Maroon 5", title: "Sugar", videoId: "09R8_2nJtjg" }
+    ];
+
+    // 유효한 실제 YouTube 재생 테스트용 대표 ID 풀 (일부 가상 예시 ID 보정용)
+    const VERIFIED_FALLBACK_IDS = {
+      "성시경|너의 모든 순간": "evOs4328_30",
+      "아이유 (IU)|밤편지 (Through the Night)": "BzYnNdJhZQw",
+      "아이유 (IU)|좋은 날 (Good Day)": "jeqdYqsrsA0",
+      "아이유 (IU)|Love wins all": "JleoAppaxi0",
+      "임영웅|사랑은 늘 도망가": "lkHlnWFnA0c",
+      "박효신|야생화 (Wild Flower)": "_hsrsmwHv0A",
+      "윤종신|좋니": "jy_UiIQn_d0",
+      "폴킴|모든 날, 모든 순간": "nq0BYGyH2Do",
+      "멜로망스|선물": "qYYJqWsBb1U",
+      "잔나비|주저하는 연인들을 위해": "5g4l5H4B-cQ",
+      "AKMU (악뮤)|어떻게 이별까지 사랑하겠어, 널 사랑하는 거지": "m3DZsBw5bnE",
+      "BTS (방탄소년단)|Dynamite": "gdZLi9oWNZg",
+      "BTS (방탄소년단)|봄날 (Spring Day)": "xEeFrLSkMm8",
+      "BLACKPINK|뚜두뚜두 (DDU-DU DDU-DU)": "IHNzOHi8sJs",
+      "NewJeans|Ditto": "pSUydWEqKwE",
+      "DAY6 (데이식스)|예뻤어": "BS7tz2rAsuE",
+      "Queen|Bohemian Rhapsody": "fJ9rUzIMcZQ",
+      "Coldplay|Viva La Vida": "dvgZkm1xWPE",
+      "Ed Sheeran|Perfect": "2Vv-BfVoq4g",
+      "Adele|Someone Like You": "hLQl3WQQoQ0",
+      "Maroon 5|Sugar": "09R8_2nJtjg"
+    };
+
+    // 샘플 GitHub 공개 DB (25곡 - 3단계 하이브리드 매칭 테스트용)
+    const SAMPLE_GITHUB_DATASET = [
+      { artist: "이선희", title: "인연", videoId: "1A2B3C4D5E6" },
+      { artist: "이적", title: "다행이다", videoId: "2B3C4D5E6F7" },
+      { artist: "김범수", title: "보고싶다", videoId: "3C4D5E6F7G8" },
+      { artist: "나얼", title: "바람기억", videoId: "4D5E6F7G8H9" },
+      { artist: "브라운아이즈", title: "벌써 일년", videoId: "5E6F7G8H9I0" },
+      { artist: "버즈", title: "가시", videoId: "6F7G8H9I0J1" },
+      { artist: "SG워너비", title: "Timeless", videoId: "7G8H9I0J1K2" },
+      { artist: "다비치", title: "8282", videoId: "8H9I0J1K2L3" },
+      { artist: "백지영", title: "총 맞은 것처럼", videoId: "9I0J1K2L3M4" },
+      { artist: "거미", title: "친구라도 될 걸 그랬어", videoId: "0J1K2L3M4N5" },
+      { artist: "임창정", title: "소주 한 잔", videoId: "1K2L3M4N5O6" },
+      { artist: "윤도현", title: "사랑했나봐", videoId: "2L3M4N5O6P7" },
+      { artist: "자우림", title: "스물다섯, 스물하나", videoId: "3M4N5O6P7Q8" },
+      { artist: "혁오", title: "위잉위잉", videoId: "4N5O6P7Q8R9" },
+      { artist: "버스커 버스커", title: "벚꽃 엔딩", videoId: "tXV7dfvSefo" },
+      { artist: "장범준", title: "흔들리는 꽃들 속에서 네 샴푸향이 느껴진거야", videoId: "6P7Q8R9S0T1" },
+      { artist: "크러쉬", title: "Beautiful", videoId: "7Q8R9S0T1U2" },
+      { artist: "헤이즈", title: "비도 오고 그래서", videoId: "8R9S0T1U2V3" },
+      { artist: "볼빨간사춘기", title: "우주를 줄게", videoId: "9S0T1U2V3W4" },
+      { artist: "아이브 (IVE)", title: "LOVE DIVE", videoId: "Y8JFxS1HlDo" },
+      { artist: "르세라핌", title: "ANTIFRAGILE", videoId: "pyf8cbqyfPs" },
+      { artist: "에스파 (aespa)", title: "Supernova", videoId: "phuiiNCxRMg" },
+      { artist: "Bruno Mars", title: "Just The Way You Are", videoId: "LjhCEhWiKXk" },
+      { artist: "Taylor Swift", title: "Shake It Off", videoId: "nfWlot6h_JM" },
+      { artist: "Imagine Dragons", title: "Believer", videoId: "7wtfhZwyrcc" }
+    ];
+
+    // =========================================================================
+    // 2. 앱 전역 상태 (State) 및 LocalStorage 키
+    // =========================================================================
+    const STORAGE_KEYS = {
+      DICTIONARY: 'gtube_song_dictionary_v1',
+      PLAYLIST: 'gtube_active_playlist_v1',
+      API_KEY: 'gtube_youtube_api_key_v1',
+      GITHUB_DB: 'gtube_github_dataset_v1',
+      DAILY_UNITS: 'gtube_daily_units_v1'
+    };
+
+    const PAGE_SIZE = 30; // 재생목록 페이지당 30곡 제한
+
+    let songDictionary = [];     // [{ id, artist, title, videoId, addedAt }]
+    let activePlaylist = [];     // [{ uid, artist, title, videoId, favorite }]
+    let githubDataset = [];      // 외부 연동 DB
+    let batchQueue = [];         // [{ id, artist, title, status, source, videoId }]
+
+    let currentIndex = -1;       // activePlaylist 내 현재 재생 곡 인덱스
+    let currentPlaylistPage = 1; // 1-based page
+    let filterFavoritesOnly = false;
+    let selectedDictIndex = '전체';
+
+    let isShuffle = false;
+    let repeatMode = 'all';      // 'all' | 'one' | 'off'
+    let isPlaying = false;
+    let ytPlayer = null;
+    let ytApiReady = false;
+    let isProcessingBatch = false;
+
+    // =========================================================================
+    // 3. 초기화 및 데이터 로드
+    // =========================================================================
+    function initApp() {
+      loadFromStorage();
+      renderIndexBar();
+      renderPlaylist();
+      renderDictionary();
+      updateHeaderStats();
+      loadSettingsUI();
+    }
+
+    function normalizeKey(artist, title) {
+      return `${artist.trim().toLowerCase()}|${title.trim().toLowerCase()}`;
+    }
+
+    function loadFromStorage() {
+      try {
+        const savedDict = localStorage.getItem(STORAGE_KEYS.DICTIONARY);
+        if (savedDict) {
+          songDictionary = JSON.parse(savedDict);
+        } else {
+          // 최초 실행 시 35곡 기본 샘플 노래사전 구축
+          songDictionary = DEFAULT_SONGS.map((s, idx) => ({
+            id: `dict_${Date.now()}_${idx}`,
+            artist: s.artist,
+            title: s.title,
+            videoId: VERIFIED_FALLBACK_IDS[`${s.artist}|${s.title}`] || s.videoId,
+            addedAt: Date.now() - (DEFAULT_SONGS.length - idx) * 1000
+          }));
+          saveDictionary();
+        }
+
+        const savedPlaylist = localStorage.getItem(STORAGE_KEYS.PLAYLIST);
+        if (savedPlaylist) {
+          activePlaylist = JSON.parse(savedPlaylist);
+        } else {
+          // 최초 실행 시 35곡 샘플 재생목록 세팅 (1페이지 30곡 + 2페이지 5곡 확인 가능)
+          activePlaylist = songDictionary.map((s, idx) => ({
+            uid: `pl_${Date.now()}_${idx}`,
+            artist: s.artist,
+            title: s.title,
+            videoId: s.videoId,
+            favorite: idx < 5
+          }));
+          savePlaylist();
+        }
+
+        const savedGithub = localStorage.getItem(STORAGE_KEYS.GITHUB_DB);
+        if (savedGithub) {
+          githubDataset = JSON.parse(savedGithub);
+        }
+      } catch (e) {
+        console.error('Storage load error:', e);
+        showToast('로컬 데이터 로드 중 오류가 발생했습니다.', 'error');
+      }
+    }
+
+    function saveDictionary() {
+      localStorage.setItem(STORAGE_KEYS.DICTIONARY, JSON.stringify(songDictionary));
+      updateHeaderStats();
+    }
+
+    function savePlaylist() {
+      localStorage.setItem(STORAGE_KEYS.PLAYLIST, JSON.stringify(activePlaylist));
+      updatePlayerIndicator();
+    }
+
+    function updateHeaderStats() {
+      document.getElementById('header-dict-count').textContent = `${songDictionary.length.toLocaleString()}곡`;
+      const units = getRemainingUnits();
+      document.getElementById('header-api-units').textContent = units.toLocaleString();
+      const settingUnitsEl = document.getElementById('setting-remaining-units');
+      if (settingUnitsEl) settingUnitsEl.textContent = units.toLocaleString();
+      const ghBadge = document.getElementById('github-cache-badge');
+      if (ghBadge) ghBadge.textContent = `연동됨: ${githubDataset.length}곡`;
+    }
+
+    function getRemainingUnits() {
+      const today = new Date().toISOString().slice(0, 10);
+      const raw = localStorage.getItem(STORAGE_KEYS.DAILY_UNITS);
+      if (!raw) return 10000;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.date !== today) return 10000;
+        return Math.max(0, 10000 - (parsed.used || 0));
+      } catch {
+        return 10000;
+      }
+    }
+
+    function consumeApiUnits(units) {
+      const today = new Date().toISOString().slice(0, 10);
+      const currentRemaining = getRemainingUnits();
+      const used = (10000 - currentRemaining) + units;
+      localStorage.setItem(STORAGE_KEYS.DAILY_UNITS, JSON.stringify({ date: today, used }));
+      updateHeaderStats();
+    }
+
+    function resetDailyUnits() {
+      const today = new Date().toISOString().slice(0, 10);
+      localStorage.setItem(STORAGE_KEYS.DAILY_UNITS, JSON.stringify({ date: today, used: 0 }));
+      updateHeaderStats();
+      showToast('금일 API 할당량 카운터가 10,000유닛으로 초기화되었습니다.', 'info');
+    }
+
+    // =========================================================================
+    // 4. YouTube IFrame Player API & 앱 자체 큐(Queue) 연속 재생 엔진
+    // =========================================================================
+    function onYouTubeIframeAPIReady() {
+      ytApiReady = true;
+      const initialVideoId = activePlaylist.length > 0 ? activePlaylist[0].videoId : 'evOs4328_30';
+      ytPlayer = new YT.Player('yt-player-placeholder', {
+        videoId: initialVideoId,
+        playerVars: {
+          autoplay: 0,
+          controls: 1,
+          rel: 0,
+          modestbranding: 1,
+          playsinline: 1
+        },
+        events: {
+          onReady: onPlayerReady,
+          onStateChange: onPlayerStateChange,
+          onError: onPlayerError
+        }
+      });
+    }
+
+    function onPlayerReady() {
+      if (activePlaylist.length > 0 && currentIndex === -1) {
+        currentIndex = 0;
+        updateNowPlayingUI(activePlaylist[0]);
+      }
+    }
+
+    function onPlayerStateChange(event) {
+      // YT.PlayerState: ENDED = 0, PLAYING = 1, PAUSED = 2
+      if (event.data === YT.PlayerState.PLAYING) {
+        isPlaying = true;
+        updatePlayPauseButton();
+        document.getElementById('player-status-badge').textContent = '▶ 재생 중 (연속 큐 활성화)';
+      } else if (event.data === YT.PlayerState.PAUSED) {
+        isPlaying = false;
+        updatePlayPauseButton();
+        document.getElementById('player-status-badge').textContent = '⏸ 일시정지됨';
+      } else if (event.data === YT.PlayerState.ENDED) {
+        // 1곡 재생 완료 시 앱 자체 큐에서 다음 곡을 순차 전달 (200곡 제한 우회)
+        handleTrackEnded();
+      }
+    }
+
+    function onPlayerError(event) {
+      console.warn('YouTube Player Error Code:', event.data);
+      showToast('재생할 수 없는 영상입니다. 자동으로 다음 곡으로 넘어갑니다.', 'warning');
+      setTimeout(() => playNext(true), 1200);
+    }
+
+    function handleTrackEnded() {
+      if (repeatMode === 'one') {
+        playSongAtIndex(currentIndex);
+        return;
+      }
+      playNext(true);
+    }
+
+    function playSongAtIndex(index) {
+      if (index < 0 || index >= activePlaylist.length) return;
+      currentIndex = index;
+      const song = activePlaylist[currentIndex];
+      updateNowPlayingUI(song);
+
+      if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+        ytPlayer.loadVideoById(song.videoId);
+      }
+
+      // 현재 재생 곡이 속한 30곡 페이지로 자동 동기화
+      const targetPage = Math.floor(currentIndex / PAGE_SIZE) + 1;
+      if (!filterFavoritesOnly && currentPlaylistPage !== targetPage) {
+        currentPlaylistPage = targetPage;
+      }
+      renderPlaylist();
+    }
+
+    function playSongImmediately(artist, title, videoId) {
+      // 재생목록에 이미 있는지 확인 후 없으면 맨 앞에 추가
+      let existingIdx = activePlaylist.findIndex(
+        item => normalizeKey(item.artist, item.title) === normalizeKey(artist, title)
+      );
+      if (existingIdx === -1) {
+        activePlaylist.unshift({
+          uid: `pl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          artist,
+          title,
+          videoId,
+          favorite: false
+        });
+        savePlaylist();
+        existingIdx = 0;
+      }
+      filterFavoritesOnly = false;
+      updateFavFilterUI();
+      playSongAtIndex(existingIdx);
+      showToast(`'${artist} - ${title}' 재생을 시작합니다.`, 'success');
+    }
+
+    function togglePlayPause() {
+      if (!ytPlayer || typeof ytPlayer.getPlayerState !== 'function') {
+        showToast('플레이어가 준비 중입니다. 잠시만 기다려주세요.', 'info');
+        return;
+      }
+      if (currentIndex === -1 && activePlaylist.length > 0) {
+        playSongAtIndex(0);
+        return;
+      }
+      const state = ytPlayer.getPlayerState();
+      if (state === YT.PlayerState.PLAYING) {
+        ytPlayer.pauseVideo();
+      } else {
+        ytPlayer.playVideo();
+      }
+    }
+
+    function playNext(autoTriggered = false) {
+      if (activePlaylist.length === 0) return;
+      if (isShuffle && activePlaylist.length > 1) {
+        let nextIdx = currentIndex;
+        while (nextIdx === currentIndex) {
+          nextIdx = Math.floor(Math.random() * activePlaylist.length);
+        }
+        playSongAtIndex(nextIdx);
+        return;
+      }
+
+      const nextIdx = currentIndex + 1;
+      if (nextIdx < activePlaylist.length) {
+        playSongAtIndex(nextIdx);
+      } else if (repeatMode === 'all') {
+        playSongAtIndex(0);
+      } else if (!autoTriggered) {
+        showToast('재생목록의 마지막 곡입니다.', 'info');
+      }
+    }
+
+    function playPrev() {
+      if (activePlaylist.length === 0) return;
+      const prevIdx = currentIndex - 1;
+      if (prevIdx >= 0) {
+        playSongAtIndex(prevIdx);
+      } else if (repeatMode === 'all') {
+        playSongAtIndex(activePlaylist.length - 1);
+      }
+    }
+
+    function toggleShuffle() {
+      isShuffle = !isShuffle;
+      const btn = document.getElementById('btn-shuffle');
+      const label = document.getElementById('shuffle-label');
+      if (isShuffle) {
+        btn.className = 'px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition flex items-center gap-1.5';
+        label.textContent = '셔플 ON';
+        showToast('셔플 재생이 켜졌습니다.', 'info');
+      } else {
+        btn.className = 'px-3 py-2 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5';
+        label.textContent = '셔플 OFF';
+      }
+    }
+
+    function cycleRepeatMode() {
+      const modes = ['all', 'one', 'off'];
+      const nextMode = modes[(modes.indexOf(repeatMode) + 1) % modes.length];
+      repeatMode = nextMode;
+      const btn = document.getElementById('btn-repeat');
+      const label = document.getElementById('repeat-label');
+      if (repeatMode === 'all') {
+        btn.className = 'px-3 py-2 rounded-lg text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 transition flex items-center gap-1.5';
+        label.textContent = '전체 반복';
+      } else if (repeatMode === 'one') {
+        btn.className = 'px-3 py-2 rounded-lg text-xs font-medium bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 transition flex items-center gap-1.5';
+        label.textContent = '1곡 반복';
+      } else {
+        btn.className = 'px-3 py-2 rounded-lg text-xs font-medium bg-slate-800 text-slate-400 transition flex items-center gap-1.5';
+        label.textContent = '반복 끔';
+      }
+    }
+
+    function updateNowPlayingUI(song) {
+      document.getElementById('now-playing-title').textContent = song.title;
+      document.getElementById('now-playing-artist').textContent = song.artist;
+      updatePlayerIndicator();
+    }
+
+    function updatePlayerIndicator() {
+      const el = document.getElementById('player-queue-indicator');
+      if (activePlaylist.length === 0) {
+        el.textContent = '재생목록 비어 있음';
+      } else {
+        const displayIdx = currentIndex >= 0 ? currentIndex + 1 : 1;
+        el.textContent = `${displayIdx} / ${activePlaylist.length}곡 큐 활성`;
+      }
+    }
+
+    function updatePlayPauseButton() {
+      const label = document.getElementById('play-pause-label');
+      const icon = document.getElementById('icon-play');
+      if (isPlaying) {
+        label.textContent = '일시정지';
+        icon.innerHTML = '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />';
+      } else {
+        label.textContent = '재생';
+        icon.innerHTML = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />';
+      }
+    }
+
+    // =========================================================================
+    // 5. 탭 전환 로직
+    // =========================================================================
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+      document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.className = 'tab-btn py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1.5 text-slate-300 hover:bg-slate-800';
+      });
+      const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+      activeBtn.className = 'tab-btn py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1.5 bg-emerald-500 text-slate-950 shadow';
+
+      if (tabName === 'playlist') renderPlaylist();
+      if (tabName === 'dictionary') renderDictionary();
+    }
+
+    // =========================================================================
+    // 6. TAB 1: 재생목록 (30곡 단위 페이지네이션 & 자유 편집)
+    // =========================================================================
+    function renderPlaylist() {
+      const container = document.getElementById('playlist-list-container');
+      const pageSelect = document.getElementById('playlist-page-select');
+      const totalInfo = document.getElementById('playlist-total-info');
+
+      // 필터링 적용 (전체 또는 즐겨찾기만)
+      const indexedList = activePlaylist
+        .map((song, originalIndex) => ({ ...song, originalIndex }))
+        .filter(item => !filterFavoritesOnly || item.favorite);
+
+      const totalCount = indexedList.length;
+      const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+      if (currentPlaylistPage > totalPages) currentPlaylistPage = totalPages;
+      if (currentPlaylistPage < 1) currentPlaylistPage = 1;
+
+      // 페이지 셀렉트 옵션 갱신
+      pageSelect.innerHTML = '';
+      for (let p = 1; p <= totalPages; p++) {
+        const startNum = (p - 1) * PAGE_SIZE + 1;
+        const endNum = Math.min(p * PAGE_SIZE, totalCount);
+        const opt = document.createElement('option');
+        opt.value = p;
+        opt.textContent = totalCount === 0
+          ? '1페이지 (0곡)'
+          : `${p}페이지 (${startNum}~${endNum}곡)`;
+        if (p === currentPlaylistPage) opt.selected = true;
+        pageSelect.appendChild(opt);
+      }
+
+      totalInfo.textContent = `/ 총 ${totalCount}곡`;
+      document.getElementById('btn-prev-page').disabled = currentPlaylistPage <= 1;
+      document.getElementById('btn-next-page').disabled = currentPlaylistPage >= totalPages;
+
+      if (totalCount === 0) {
+        container.innerHTML = `
+          <div class="text-center py-12 text-slate-500 text-sm">
+            ${filterFavoritesOnly ? '즐겨찾기(★) 표시된 곡이 없습니다.' : '재생목록이 비어 있습니다. 노래사전이나 일괄등록 탭에서 곡을 추가해 보세요!'}
+          </div>`;
+        return;
+      }
+
+      const startIdx = (currentPlaylistPage - 1) * PAGE_SIZE;
+      const pageItems = indexedList.slice(startIdx, startIdx + PAGE_SIZE);
+
+      container.innerHTML = pageItems.map((song) => {
+        const isCurrent = song.originalIndex === currentIndex;
+        const rowClass = isCurrent
+          ? 'bg-emerald-500/15 border-emerald-500/50 shadow-md shadow-emerald-950/30'
+          : 'bg-slate-950/70 border-slate-800/90 hover:border-slate-700';
+
+        return `
+          <div class="flex items-center justify-between gap-2 p-2.5 sm:px-3.5 rounded-xl border ${rowClass} transition group">
+            <!-- 곡 번호 & 정보 (클릭 시 즉시 재생) -->
+            <div onclick="playSongAtIndex(${song.originalIndex})" class="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+              <span class="w-7 text-center text-xs font-bold ${isCurrent ? 'text-emerald-400' : 'text-slate-500'}">
+                ${isCurrent ? '▶' : song.originalIndex + 1}
+              </span>
+              <div class="min-w-0 flex-1">
+                <p class="text-xs sm:text-sm font-semibold ${isCurrent ? 'text-emerald-300' : 'text-slate-100'} truncate">
+                  ${escapeHtml(song.title)}
+                </p>
+                <p class="text-[11px] sm:text-xs text-slate-400 truncate">
+                  ${escapeHtml(song.artist)}
+                </p>
+              </div>
+            </div>
+
+            <!-- 자유 편집 컨트롤 (즐겨찾기, 맨위로, 위, 아래, 삭제) -->
+            <div class="flex items-center gap-1 shrink-0">
+              <button onclick="togglePlaylistFavorite(${song.originalIndex})" class="p-1.5 rounded-lg hover:bg-slate-800 text-sm ${song.favorite ? 'text-amber-400' : 'text-slate-600 hover:text-slate-300'}" title="즐겨찾기 토글">
+                ${song.favorite ? '★' : '☆'}
+              </button>
+              <button onclick="movePlaylistSongToTop(${song.originalIndex})" class="hidden sm:inline-flex px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-[11px] text-slate-300 transition" title="1번(맨 위로) 이동">
+                맨위로
+              </button>
+              <button onclick="movePlaylistSong(${song.originalIndex}, -1)" class="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-xs text-slate-300 transition" title="위로 이동">
+                ▲
+              </button>
+              <button onclick="movePlaylistSong(${song.originalIndex}, 1)" class="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-xs text-slate-300 transition" title="아래로 이동">
+                ▼
+              </button>
+              <button onclick="removePlaylistSong(${song.originalIndex})" class="p-1.5 rounded-lg hover:bg-rose-950/60 text-xs text-slate-500 hover:text-rose-400 transition" title="재생목록에서 제외">
+                ✕
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function changePlaylistPage(delta) {
+      currentPlaylistPage += delta;
+      renderPlaylist();
+    }
+
+    function jumpToPlaylistPage(pageVal) {
+      currentPlaylistPage = parseInt(pageVal, 10) || 1;
+      renderPlaylist();
+    }
+
+    function locateCurrentSongPage() {
+      if (currentIndex < 0) return;
+      filterFavoritesOnly = false;
+      updateFavFilterUI();
+      currentPlaylistPage = Math.floor(currentIndex / PAGE_SIZE) + 1;
+      renderPlaylist();
+      showToast(`${currentIndex + 1}번 곡이 있는 ${currentPlaylistPage}페이지로 이동했습니다.`, 'info');
+    }
+
+    function toggleFavFilter() {
+      filterFavoritesOnly = !filterFavoritesOnly;
+      currentPlaylistPage = 1;
+      updateFavFilterUI();
+      renderPlaylist();
+    }
+
+    function updateFavFilterUI() {
+      const btn = document.getElementById('btn-fav-filter');
+      const label = document.getElementById('fav-filter-label');
+      if (filterFavoritesOnly) {
+        btn.className = 'px-3 py-2 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-semibold transition flex items-center gap-1';
+        label.textContent = '전체 곡 보기';
+      } else {
+        btn.className = 'px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition flex items-center gap-1';
+        label.textContent = '즐겨찾기만 보기';
+      }
+    }
+
+    function togglePlaylistFavorite(idx) {
+      if (!activePlaylist[idx]) return;
+      activePlaylist[idx].favorite = !activePlaylist[idx].favorite;
+      savePlaylist();
+      renderPlaylist();
+    }
+
+    function movePlaylistSong(idx, direction) {
+      const targetIdx = idx + direction;
+      if (targetIdx < 0 || targetIdx >= activePlaylist.length) return;
+      const temp = activePlaylist[idx];
+      activePlaylist[idx] = activePlaylist[targetIdx];
+      activePlaylist[targetIdx] = temp;
+
+      if (currentIndex === idx) currentIndex = targetIdx;
+      else if (currentIndex === targetIdx) currentIndex = idx;
+
+      savePlaylist();
+      renderPlaylist();
+    }
+
+    function movePlaylistSongToTop(idx) {
+      if (idx <= 0 || idx >= activePlaylist.length) return;
+      const [moved] = activePlaylist.splice(idx, 1);
+      activePlaylist.unshift(moved);
+
+      if (currentIndex === idx) currentIndex = 0;
+      else if (currentIndex >= 0 && currentIndex < idx) currentIndex += 1;
+
+      currentPlaylistPage = 1;
+      savePlaylist();
+      renderPlaylist();
+      showToast(`'${moved.title}' 곡을 1번으로 올렸습니다.`, 'info');
+    }
+
+    function removePlaylistSong(idx) {
+      const removed = activePlaylist.splice(idx, 1)[0];
+      if (currentIndex === idx) {
+        currentIndex = Math.min(idx, activePlaylist.length - 1);
+      } else if (currentIndex > idx) {
+        currentIndex -= 1;
+      }
+      savePlaylist();
+      renderPlaylist();
+      showToast(`'${removed.title}' 곡을 재생목록에서 뺐습니다. (노래사전에는 유지됨)`, 'info');
+    }
+
+    function resetDefaultPlaylist() {
+      activePlaylist = songDictionary.map((s, idx) => ({
+        uid: `pl_${Date.now()}_${idx}`,
+        artist: s.artist,
+        title: s.title,
+        videoId: s.videoId,
+        favorite: false
+      }));
+      currentIndex = 0;
+      currentPlaylistPage = 1;
+      savePlaylist();
+      renderPlaylist();
+      showToast(`노래사전 전체(${activePlaylist.length}곡)를 재생목록에 불러왔습니다.`, 'success');
+    }
+
+    // =========================================================================
+    // 7. TAB 2: 노래사전 (초성/알파벳 색인 & 실시간 초고속 검색)
+    // =========================================================================
+    const INDEX_BUTTONS = ['전체', 'ㄱ', 'ㄴ', 'ㄷ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅅ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ', 'A-Z'];
+
+    function getKoreanInitial(str) {
+      if (!str) return '';
+      const ch = str.trim().charAt(0);
+      const code = ch.charCodeAt(0);
+      // 한글 음절 범위 (가 ~ 힣)
+      if (code >= 0xAC00 && code <= 0xD7A3) {
+        const initials = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+        const idx = Math.floor((code - 0xAC00) / 588);
+        const init = initials[idx];
+        // 쌍자음은 대표 자음으로 매핑
+        const mapDouble = { 'ㄲ': 'ㄱ', 'ㄸ': 'ㄷ', 'ㅃ': 'ㅂ', 'ㅆ': 'ㅅ', 'ㅉ': 'ㅈ' };
+        return mapDouble[init] || init;
+      }
+      if (/[a-zA-Z0-9]/.test(ch)) return 'A-Z';
+      return '';
+    }
+
+    function renderIndexBar() {
+      const bar = document.getElementById('dict-index-bar');
+      bar.innerHTML = INDEX_BUTTONS.map(label => {
+        const active = selectedDictIndex === label;
+        const cls = active
+          ? 'bg-emerald-500 text-slate-950 font-bold border-emerald-400'
+          : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-600';
+        return `<button onclick="selectDictIndex('${label}')" class="px-2.5 py-1 rounded-lg text-xs border ${cls} transition">${label}</button>`;
+      }).join('');
+    }
+
+    function selectDictIndex(label) {
+      selectedDictIndex = label;
+      renderIndexBar();
+      renderDictionary();
+    }
+
+    function renderDictionary() {
+      const keyword = (document.getElementById('dict-search-input').value || '').trim().toLowerCase();
+      const sortBy = document.getElementById('dict-sort-select').value;
+      const container = document.getElementById('dict-list-container');
+
+      let filtered = songDictionary.filter(song => {
+        const matchKeyword = !keyword ||
+          song.artist.toLowerCase().includes(keyword) ||
+          song.title.toLowerCase().includes(keyword);
+        if (!matchKeyword) return false;
+
+        if (selectedDictIndex === '전체') return true;
+        const targetText = sortBy === 'title' ? song.title : song.artist;
+        return getKoreanInitial(targetText) === selectedDictIndex;
+      });
+
+      // 정렬
+      filtered.sort((a, b) => {
+        if (sortBy === 'title') return a.title.localeCompare(b.title, 'ko');
+        if (sortBy === 'recent') return (b.addedAt || 0) - (a.addedAt || 0);
+        return a.artist.localeCompare(b.artist, 'ko');
+      });
+
+      document.getElementById('dict-result-count').textContent = `검색 결과: ${filtered.length}곡 (전체 사전 ${songDictionary.length}곡)`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full text-center py-10 text-slate-500 text-xs sm:text-sm">
+            조건에 일치하는 곡이 노래사전에 없습니다. 우측 상단 [+ 직접 ID 등록] 또는 [일괄등록] 탭에서 추가해 보세요!
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(song => `
+        <div class="bg-slate-950/80 border border-slate-800 hover:border-slate-700 rounded-xl p-3 flex items-center justify-between gap-2 transition">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs font-bold text-emerald-400 truncate">${escapeHtml(song.artist)}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 text-slate-500 font-mono">${escapeHtml(song.videoId)}</span>
+            </div>
+            <p class="text-sm font-semibold text-slate-100 truncate mt-0.5">${escapeHtml(song.title)}</p>
+          </div>
+
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button onclick="playSongImmediately('${escapeAttr(song.artist)}', '${escapeAttr(song.title)}', '${escapeAttr(song.videoId)}')" class="px-2.5 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-slate-950 font-semibold text-xs transition" title="즉시 재생">
+              ▶ 듣기
+            </button>
+            <button onclick="appendToActivePlaylist('${escapeAttr(song.artist)}', '${escapeAttr(song.title)}', '${escapeAttr(song.videoId)}')" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition" title="현재 재생목록 끝에 추가">
+              + 담기
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function appendToActivePlaylist(artist, title, videoId) {
+      activePlaylist.push({
+        uid: `pl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        artist,
+        title,
+        videoId,
+        favorite: false
+      });
+      savePlaylist();
+      showToast(`'${artist} - ${title}' 곡을 재생목록(${activePlaylist.length}번)에 담았습니다.`, 'success');
+    }
+
+    function toggleManualAddModal() {
+      document.getElementById('manual-add-box').classList.toggle('hidden');
+    }
+
+    function extractYoutubeId(input) {
+      const trimmed = input.trim();
+      if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) return trimmed;
+      const match = trimmed.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
+      return match ? match[1] : trimmed;
+    }
+
+    function addManualSongToDict() {
+      const artist = document.getElementById('manual-artist').value.trim();
+      const title = document.getElementById('manual-title').value.trim();
+      const rawId = document.getElementById('manual-videoid').value.trim();
+
+      if (!artist || !title || !rawId) {
+        showToast('가수명, 곡명, YouTube 영상 ID를 모두 입력해 주세요.', 'warning');
+        return;
+      }
+
+      const videoId = extractYoutubeId(rawId);
+      upsertSongToDictionary(artist, title, videoId);
+      document.getElementById('manual-artist').value = '';
+      document.getElementById('manual-title').value = '';
+      document.getElementById('manual-videoid').value = '';
+      renderDictionary();
+      showToast(`'${artist} - ${title}' 곡이 노래사전에 저장되었습니다!`, 'success');
+    }
+
+    function upsertSongToDictionary(artist, title, videoId) {
+      const key = normalizeKey(artist, title);
+      const existing = songDictionary.find(s => normalizeKey(s.artist, s.title) === key);
+      if (existing) {
+        existing.videoId = videoId;
+        existing.addedAt = Date.now();
+      } else {
+        songDictionary.unshift({
+          id: `dict_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          artist: artist.trim(),
+          title: title.trim(),
+          videoId: videoId.trim(),
+          addedAt: Date.now()
+        });
+      }
+      saveDictionary();
+    }
+
+    // =========================================================================
+    // 8. TAB 3: 일괄 등록 & 30곡 배치(Batch) 하이브리드 검색 엔진
+    // =========================================================================
+    function fillSampleBatchText() {
+      // 로컬 DB + GitHub DB + 미등록 신곡이 섞인 40곡 테스트 샘플 생성
+      const lines = [
+        "1. 성시경 - 너의 모든 순간",
+        "2. 아이유 (IU) - 밤편지 (Through the Night)",
+        "3. 이선희 - 인연",
+        "4. 이적 - 다행이다",
+        "5. 김범수 - 보고싶다",
+        "6. 나얼 - 바람기억",
+        "7. 브라운아이즈 - 벌써 일년",
+        "8. 버즈 - 가시",
+        "9. SG워너비 - Timeless",
+        "10. 다비치 - 8282",
+        "11. 백지영 - 총 맞은 것처럼",
+        "12. 거미 - 친구라도 될 걸 그랬어",
+        "13. 임창정 - 소주 한 잔",
+        "14. 윤도현 - 사랑했나봐",
+        "15. 자우림 - 스물다섯, 스물하나",
+        "16. 혁오 - 위잉위잉",
+        "17. 버스커 버스커 - 벚꽃 엔딩",
+        "18. 장범준 - 흔들리는 꽃들 속에서 네 샴푸향이 느껴진거야",
+        "19. 크러쉬 - Beautiful",
+        "20. 헤이즈 - 비도 오고 그래서",
+        "21. 볼빨간사춘기 - 우주를 줄게",
+        "22. 아이브 (IVE) - LOVE DIVE",
+        "23. 르세라핌 - ANTIFRAGILE",
+        "24. 에스파 (aespa) - Supernova",
+        "25. Bruno Mars - Just The Way You Are",
+        "26. Taylor Swift - Shake It Off",
+        "27. Imagine Dragons - Believer",
+        "28. 박효신 - 야생화 (Wild Flower)",
+        "29. 김광석 - 서른 즈음에",
+        "30. Queen - Bohemian Rhapsody",
+        "31. 데이식스 - 한 페이지가 될 수 있게",
+        "32. 로이킴 - 봄봄봄",
+        "33. 폴킴 - 너를 만나",
+        "34. 10CM - 스토커",
+        "35. 정승환 - 이 바보야",
+        "36. 윤하 - 사건의 지평선",
+        "37. 임영웅 - 다시 만날 수 있을까",
+        "38. 조용필 - 킬리만자로의 표범",
+        "39. 이문세 - 붉은 노을",
+        "40. Coldplay - Fix You"
+      ];
+      document.getElementById('batch-textarea').value = lines.join('\n');
+      showToast('40곡 샘플 목록이 입력되었습니다. [대기열에 등록하기]를 눌러보세요!', 'info');
+    }
+
+    function enqueueBatchSongs() {
+      const rawText = document.getElementById('batch-textarea').value;
+      const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+      if (lines.length === 0) {
+        showToast('등록할 곡 목록을 입력창에 붙여넣어 주세요.', 'warning');
+        return;
+      }
+
+      let addedCount = 0;
+      lines.forEach((line, idx) => {
+        // 앞번호(예: "1. ", "01) ") 제거
+        const cleaned = line.replace(/^\d+[\.\)\-\s]+/, '').trim();
+        let artist = '미상';
+        let title = cleaned;
+
+        if (cleaned.includes(' - ')) {
+          const parts = cleaned.split(' - ');
+          artist = parts[0].trim();
+          title = parts.slice(1).join(' - ').trim();
+        } else if (cleaned.includes('-')) {
+          const parts = cleaned.split('-');
+          artist = parts[0].trim();
+          title = parts.slice(1).join('-').trim();
+        }
+
+        if (title) {
+          batchQueue.push({
+            id: `q_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 5)}`,
+            artist,
+            title,
+            status: 'pending', // 'pending' | 'matched' | 'needs_key' | 'error'
+            source: '',
+            videoId: ''
+          });
+          addedCount++;
+        }
+      });
+
+      renderBatchQueue();
+      showToast(`${addedCount}곡이 검색 대기열에 등록되었습니다. [다음 30곡 자동 검색]을 눌러주세요!`, 'success');
+    }
+
+    function clearBatchQueue() {
+      batchQueue = [];
+      renderBatchQueue();
+      showToast('대기열이 초기화되었습니다.', 'info');
+    }
+
+    async function processNext30Batch() {
+      if (isProcessingBatch) return;
+
+      const pendingItems = batchQueue.filter(item => item.status === 'pending' || item.status === 'needs_key');
+      if (pendingItems.length === 0) {
+        showToast('대기 중인 곡이 없습니다. 새로운 곡 목록을 등록해 주세요.', 'info');
+        return;
+      }
+
+      isProcessingBatch = true;
+      const btn = document.getElementById('btn-process-30');
+      btn.disabled = true;
+      btn.classList.add('opacity-70');
+
+      const targetBatch = pendingItems.slice(0, 30);
+      const apiKey = (localStorage.getItem(STORAGE_KEYS.API_KEY) || '').trim();
+
+      let localHits = 0;
+      let githubHits = 0;
+      let apiHits = 0;
+      let addedToPlaylistCount = 0;
+
+      for (const item of targetBatch) {
+        const key = normalizeKey(item.artist, item.title);
+
+        // 1단계: 내 로컬 노래사전 DB 탐색 (0 유닛)
+        const localMatch = songDictionary.find(s => normalizeKey(s.artist, s.title) === key);
+        if (localMatch && localMatch.videoId) {
+          item.status = 'matched';
+          item.source = '로컬 DB 매칭 ✓';
+          item.videoId = localMatch.videoId;
+          localHits++;
+        } else {
+          // 2단계: GitHub/외부 공개 데이터셋 탐색 (0 유닛)
+          const ghMatch = githubDataset.find(s => normalizeKey(s.artist, s.title) === key);
+          if (ghMatch && ghMatch.videoId) {
+            item.status = 'matched';
+            item.source = 'GitHub DB 매칭 ✓';
+            item.videoId = ghMatch.videoId;
+            upsertSongToDictionary(item.artist, item.title, ghMatch.videoId);
+            githubHits++;
+          } else if (apiKey) {
+            // 3단계: YouTube Data API v3 정밀 검색 (100 유닛 소모)
+            try {
+              const query = encodeURIComponent(`${item.artist} ${item.title} official audio`);
+              const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=1&q=${query}&key=${encodeURIComponent(apiKey)}`;
+              const res = await fetch(url);
+              const data = await res.json();
+
+              if (data.items && data.items.length > 0 && data.items[0].id.videoId) {
+                const foundId = data.items[0].id.videoId;
+                item.status = 'matched';
+                item.source = 'API 검색 완료 ✓';
+                item.videoId = foundId;
+                upsertSongToDictionary(item.artist, item.title, foundId);
+                consumeApiUnits(100);
+                apiHits++;
+              } else {
+                item.status = 'error';
+                item.source = data.error ? `API 오류: ${data.error.message.slice(0, 20)}` : '검색 결과 없음';
+              }
+            } catch (err) {
+              item.status = 'error';
+              item.source = '네트워크 오류';
+            }
+          } else {
+            // API 키 미설정 상태 안내
+            item.status = 'needs_key';
+            item.source = 'API 키 필요 (미매칭)';
+          }
+        }
+
+        // 매칭 성공 시 현재 재생목록에 자동 추가
+        if (item.status === 'matched' && item.videoId) {
+          activePlaylist.push({
+            uid: `pl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            artist: item.artist,
+            title: item.title,
+            videoId: item.videoId,
+            favorite: false
+          });
+          addedToPlaylistCount++;
+        }
+
+        renderBatchQueue();
+      }
+
+      if (addedToPlaylistCount > 0) {
+        savePlaylist();
+      }
+
+      isProcessingBatch = false;
+      btn.disabled = false;
+      btn.classList.remove('opacity-70');
+      renderBatchQueue();
+
+      const summary = `처리 완료! 로컬(${localHits}곡) · GitHub(${githubHits}곡) · API(${apiHits}곡) → 총 ${addedToPlaylistCount}곡 재생목록 추가`;
+      showToast(summary, addedToPlaylistCount > 0 ? 'success' : 'warning');
+    }
+
+    function renderBatchQueue() {
+      const listEl = document.getElementById('batch-queue-list');
+      const total = batchQueue.length;
+      const completed = batchQueue.filter(i => i.status === 'matched').length;
+      const pending = batchQueue.filter(i => i.status === 'pending' || i.status === 'needs_key').length;
+
+      document.getElementById('batch-progress-text').textContent = `완료: ${completed} / 총 ${total}곡`;
+      const pct = total === 0 ? 0 : Math.round((completed / total) * 100);
+      document.getElementById('batch-progress-bar').style.width = `${pct}%`;
+
+      const nextChunk = Math.min(30, pending);
+      document.getElementById('btn-process-30-label').textContent =
+        pending > 0
+          ? `다음 ${nextChunk}곡 자동 검색 및 추가 (남은 대기 ${pending}곡)`
+          : `다음 30곡 자동 검색 및 추가 (대기 0곡)`;
+
+      if (total === 0) {
+        listEl.innerHTML = `
+          <div class="text-center text-xs text-slate-500 py-10">
+            좌측 입력창에 곡 목록을 넣고 [대기열에 등록하기]를 눌러주세요.
+          </div>`;
+        return;
+      }
+
+      listEl.innerHTML = batchQueue.map((item, idx) => {
+        let badgeHtml = `<span class="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-400">대기 중</span>`;
+        if (item.status === 'matched') {
+          const isLocal = item.source.includes('로컬');
+          const isGh = item.source.includes('GitHub');
+          const colorCls = isLocal
+            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+            : isGh
+              ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
+              : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30';
+          badgeHtml = `<span class="text-[11px] px-2 py-0.5 rounded border ${colorCls} font-medium">${escapeHtml(item.source)}</span>`;
+        } else if (item.status === 'needs_key') {
+          badgeHtml = `
+            <button onclick="switchTab('settings')" class="text-[11px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition">
+              API 키 설정 / GitHub 연동 →
+            </button>`;
+        } else if (item.status === 'error') {
+          badgeHtml = `<span class="text-[11px] px-2 py-0.5 rounded bg-rose-500/15 text-rose-300">${escapeHtml(item.source)}</span>`;
+        }
+
+        return `
+          <div class="flex items-center justify-between gap-2 bg-slate-900/90 border border-slate-800/80 rounded-lg px-3 py-2">
+            <div class="flex items-center gap-2 min-w-0 flex-1">
+              <span class="text-[11px] text-slate-500 w-6">${idx + 1}</span>
+              <span class="text-xs text-slate-200 truncate">
+                <strong class="text-slate-300">${escapeHtml(item.artist)}</strong> - ${escapeHtml(item.title)}
+              </span>
+            </div>
+            <div class="shrink-0">${badgeHtml}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // =========================================================================
+    // 9. TAB 4: DB 연동 & 백업 설정
+    // =========================================================================
+    function loadSettingsUI() {
+      const savedKey = localStorage.getItem(STORAGE_KEYS.API_KEY) || '';
+      document.getElementById('setting-api-key').value = savedKey;
+      updateHeaderStats();
+    }
+
+    function saveApiKey() {
+      const key = document.getElementById('setting-api-key').value.trim();
+      localStorage.setItem(STORAGE_KEYS.API_KEY, key);
+      showToast(key ? 'YouTube Data API 키가 안전하게 저장되었습니다.' : 'API 키가 삭제되었습니다.', 'success');
+    }
+
+    function loadSimulatedGithubDataset() {
+      mergeGithubData(SAMPLE_GITHUB_DATASET);
+      showToast(`샘플 GitHub 명곡 DB (${SAMPLE_GITHUB_DATASET.length}곡)가 연동되었습니다! 이제 0유닛으로 매칭됩니다.`, 'success');
+    }
+
+    async function fetchGithubDataset() {
+      const url = document.getElementById('setting-github-url').value.trim();
+      if (!url) {
+        showToast('GitHub Raw JSON 또는 CSV URL을 입력해 주세요.', 'warning');
+        return;
+      }
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        const parsed = parseExternalDatasetText(text);
+        if (parsed.length === 0) throw new Error('유효한 곡 데이터를 찾지 못했습니다.');
+        mergeGithubData(parsed);
+        showToast(`GitHub에서 ${parsed.length}곡의 영상 ID 데이터를 성공적으로 불러왔습니다!`, 'success');
+      } catch (err) {
+        showToast(`데이터셋 로드 실패: ${err.message}`, 'error');
+      }
+    }
+
+    function uploadExternalDatasetFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = parseExternalDatasetText(e.target.result);
+          if (parsed.length === 0) throw new Error('유효한 데이터가 없습니다.');
+          mergeGithubData(parsed);
+          showToast(`파일에서 ${parsed.length}곡의 영상 ID 데이터를 연동했습니다!`, 'success');
+        } catch (err) {
+          showToast(`파일 파싱 오류: ${err.message}`, 'error');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    function parseExternalDatasetText(text) {
+      const trimmed = text.trim();
+      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+        const json = JSON.parse(trimmed);
+        const arr = Array.isArray(json) ? json : (json.songs || json.items || []);
+        return arr
+          .filter(item => item.artist && item.title && item.videoId)
+          .map(item => ({
+            artist: String(item.artist).trim(),
+            title: String(item.title).trim(),
+            videoId: extractYoutubeId(String(item.videoId))
+          }));
+      }
+      // CSV 파싱 (artist,title,videoId)
+      const lines = trimmed.split(/\r?\n/).filter(Boolean);
+      const result = [];
+      lines.forEach((line, idx) => {
+        const cols = line.split(',').map(c => c.replace(/^"|"$/g, '').trim());
+        if (idx === 0 && cols[0].toLowerCase() === 'artist') return;
+        if (cols.length >= 3 && cols[0] && cols[1] && cols[2]) {
+          result.push({ artist: cols[0], title: cols[1], videoId: extractYoutubeId(cols[2]) });
+        }
+      });
+      return result;
+    }
+
+    function mergeGithubData(newItems) {
+      const map = new Map();
+      githubDataset.forEach(item => map.set(normalizeKey(item.artist, item.title), item));
+      newItems.forEach(item => map.set(normalizeKey(item.artist, item.title), item));
+      githubDataset = Array.from(map.values());
+      localStorage.setItem(STORAGE_KEYS.GITHUB_DB, JSON.stringify(githubDataset));
+      updateHeaderStats();
+    }
+
+    function exportDictionaryJson() {
+      const payload = {
+        app: 'Gtube Playlist App',
+        exportedAt: new Date().toISOString(),
+        totalSongs: songDictionary.length,
+        songs: songDictionary
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gtube_song_dictionary_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`노래사전 ${songDictionary.length}곡이 JSON 파일로 저장되었습니다.`, 'success');
+    }
+
+    function importDictionaryJson(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          const list = Array.isArray(parsed) ? parsed : (parsed.songs || []);
+          let importedCount = 0;
+          list.forEach(item => {
+            if (item.artist && item.title && item.videoId) {
+              upsertSongToDictionary(item.artist, item.title, item.videoId);
+              importedCount++;
+            }
+          });
+          renderDictionary();
+          showToast(`${importedCount}곡을 노래사전 DB에 병합 완료했습니다!`, 'success');
+        } catch (err) {
+          showToast('올바른 JSON 백업 파일이 아닙니다.', 'error');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    // =========================================================================
+    // 10. 유틸리티 & 토스트 알림
+    // =========================================================================
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function escapeAttr(str) {
+      return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const styles = {
+        success: 'bg-emerald-950/95 border-emerald-500/60 text-emerald-200',
+        warning: 'bg-amber-950/95 border-amber-500/60 text-amber-200',
+        error: 'bg-rose-950/95 border-rose-500/60 text-rose-200',
+        info: 'bg-slate-900/95 border-cyan-500/50 text-slate-100'
+      };
+      toast.className = `pointer-events-auto px-4 py-3 rounded-xl border text-xs sm:text-sm shadow-xl backdrop-blur transition-all duration-300 ${styles[type] || styles.info}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3400);
+    }
+
+    window.onload = initApp;
+  </script>
+</body>
+</html>
