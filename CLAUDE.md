@@ -10,7 +10,7 @@
 ## 이 앱
 - **Gtube Playlist App** = 나만의 노래사전을 쌓고 재생목록을 꾸려 앱 안 유튜브 플레이어로 듣는 주크박스.
 - **Good Playlist App(`co2oc/main` `tools/goodplaylist/`)과는 당분간 별개** (2026-11-14 아주). 파일·메모·Worker를 섞지 않습니다.
-- 작업본 `gtube_playlist.html` · 원본 `원본/`(손대지 않음) · 자세한 내용과 메모는 `README.md`.
+- 작업본 `gtubeplaylist.html` · 원본 `원본/`(손대지 않음) · 자세한 내용과 메모는 `README.md`.
 - 아주 PC 작업 폴더: `C:\dev2\Claude Code(R)\Gtube Playlist` (이 저장소를 받은 폴더).
 
 ## 일하는 방식
@@ -41,4 +41,4 @@
 
 
 
-UIID: HOC-BESTSM55-CLAUDX789-20261114094046-KR-MD-V-1ASAKZ317WFS-CLAUDE
+UIID: HOC-BESTSM55-CLAUDX789-20261114124716-KR-MD-V-T9IQLE17WFR5-CLAUDE

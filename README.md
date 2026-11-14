@@ -7,7 +7,7 @@
 
 | 파일 | 담긴 것 |
 |---|---|
-| `gtube_playlist.html` | **작업본** = 개선판에서 시작. 모아 고치기는 이 파일에 |
+| `gtubeplaylist.html` | **작업본** = 개선판에서 시작. 모아 고치기는 이 파일에 |
 | `원본/gtube_playlist_app.html` | 아주가 가져온 첫 판 (1,691줄, 손대지 않음) |
 | `원본/gtube_playlist_app_improved.html` | 아주가 가져온 개선판 (1,740줄, 손대지 않음 — 작업본의 출발점) |
 
@@ -52,4 +52,4 @@
 
 
 
-UIID: HOC-BESTSM55-CLAUDX789-20261114094046-KR-MD-V-TFVJM817WFS3-README
+UIID: HOC-BESTSM55-CLAUDX789-20261114124716-KR-MD-V-6PENGC17WFS2-README
